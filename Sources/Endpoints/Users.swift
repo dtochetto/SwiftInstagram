@@ -21,6 +21,19 @@ extension Instagram {
         request("/users/\(userId)", success: { data in success?(data!) }, failure: failure)
     }
 
+    
+    /// Get the my user profile
+    ///
+    /// - parameter userId: The ID of the user whose recent media to retrieve, or "self" to reference the currently authenticated user.
+    /// - parameter success: The callback called after a correct retrieval.
+    /// - parameter failure: The callback called after an incorrect retrieval.
+    ///
+    /// - important: It requires *public_content* scope when getting recent media published by a user other than yours.
+    
+    public func me(success: SuccessHandler<InstagramUser>?, failure: FailureHandler?) {
+        request("/users/self", parameters: Parameters(), success: { data in success?(data!) }, failure: failure)
+    }
+    
     /// Get the most recent media published by a user.
     ///
     /// - parameter userId: The ID of the user whose recent media to retrieve, or "self" to reference the currently authenticated user.
@@ -79,5 +92,9 @@ extension Instagram {
         parameters["count"] ??= count
 
         request("/users/search", parameters: parameters, success: { data in success?(data!) }, failure: failure)
+    }
+    
+    public func me(success: SuccessHandler<InstagramUser>?, failure: FailureHandler?) {
+        request("/users/self", parameters: Parameters(), success: { data in success?(data!) }, failure: failure)
     }
 }

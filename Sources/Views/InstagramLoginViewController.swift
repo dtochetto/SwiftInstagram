@@ -11,6 +11,8 @@ import WebKit
 
 class InstagramLoginViewController: UIViewController {
 
+    var progressColor = UIColor(red: 0.88, green: 0.19, blue: 0.42, alpha: 1.0)
+    
     // MARK: - Types
 
     typealias SuccessHandler = (_ accesToken: String) -> Void
@@ -19,8 +21,8 @@ class InstagramLoginViewController: UIViewController {
     // MARK: - Properties
 
     private var authURL: URL
-    private var success: SuccessHandler?
-    private var failure: FailureHandler?
+    var success: SuccessHandler?
+    var failure: FailureHandler?
 
     private var progressView: UIProgressView!
     private var webViewObservation: NSKeyValueObservation!
@@ -56,6 +58,8 @@ class InstagramLoginViewController: UIViewController {
 
         // Starts authorization
         webView.load(URLRequest(url: authURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData))
+        
+        navigationItem.title = "Log in - Instagram"
     }
 
     deinit {
@@ -70,7 +74,7 @@ class InstagramLoginViewController: UIViewController {
 
         progressView = UIProgressView(progressViewStyle: .bar)
         progressView.progress = 0.0
-        progressView.tintColor = UIColor(red: 0.88, green: 0.19, blue: 0.42, alpha: 1.0)
+        progressView.tintColor = progressColor
         progressView.translatesAutoresizingMaskIntoConstraints = false
 
         navBar.addSubview(progressView)
@@ -86,14 +90,21 @@ class InstagramLoginViewController: UIViewController {
         let webConfiguration = WKWebViewConfiguration()
         webConfiguration.websiteDataStore = .nonPersistent()
 
-        let webView = WKWebView(frame: view.frame, configuration: webConfiguration)
-        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        let webView = WKWebView(frame: .zero, configuration: webConfiguration)
         webView.navigationDelegate = self
 
         webViewObservation = webView.observe(\.estimatedProgress, changeHandler: progressViewChangeHandler)
 
         view.addSubview(webView)
 
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        let webViewViews: [String : Any] = ["webView": webView]
+        let topHeight: Int = 0
+        let verticalConstraints = NSLayoutConstraint.constraints(withVisualFormat: "V:|-\(topHeight)-[webView]|", options: [], metrics: nil, views: webViewViews)
+        let horizontalConstraints = NSLayoutConstraint.constraints(withVisualFormat: "H:|[webView]|",  options: [],  metrics: nil,  views: webViewViews)
+        view.addConstraints(horizontalConstraints)
+        view.addConstraints(verticalConstraints)
+        
         return webView
     }
 
@@ -116,23 +127,20 @@ class InstagramLoginViewController: UIViewController {
 
 extension InstagramLoginViewController: WKNavigationDelegate {
 
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        navigationItem.title = webView.title
-    }
-
     func webView(_ webView: WKWebView,
                  decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-
         let urlString = navigationAction.request.url!.absoluteString
-
+        if urlString.hasPrefix("https://www.instagram.com/accounts/password/reset/") {
+            decisionHandler(.cancel)
+            UIApplication.shared.openURL(navigationAction.request.url!)
+            return
+        }
         guard let range = urlString.range(of: "#access_token=") else {
             decisionHandler(.allow)
             return
         }
-
         decisionHandler(.cancel)
-
         DispatchQueue.main.async {
             self.success?(String(urlString[range.upperBound...]))
         }
@@ -141,12 +149,10 @@ extension InstagramLoginViewController: WKNavigationDelegate {
     func webView(_ webView: WKWebView,
                  decidePolicyFor navigationResponse: WKNavigationResponse,
                  decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
-
         guard let httpResponse = navigationResponse.response as? HTTPURLResponse else {
             decisionHandler(.allow)
             return
         }
-
         switch httpResponse.statusCode {
         case 400:
             decisionHandler(.cancel)

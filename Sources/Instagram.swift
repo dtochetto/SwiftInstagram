@@ -65,26 +65,28 @@ public class Instagram {
     /// - parameter scopes: The scope of the access you are requesting from the user. Basic access by default.
     /// - parameter success: The callback called after a correct login.
     /// - parameter failure: The callback called after an incorrect login.
-    public func login(from controller: UINavigationController,
-                      withScopes scopes: [InstagramScope] = [.basic],
+    public func login(withScopes scopes: [InstagramScope] = [.basic],
                       success: EmptySuccessHandler?,
-                      failure: FailureHandler?) {
-
-        guard client != nil else { failure?(InstagramError.missingClientIdOrRedirectURI); return }
-
+                      failure: FailureHandler? ) -> UINavigationController? {
+        guard client != nil else {
+            failure?(InstagramError.missingClientIdOrRedirectURI)
+            return nil
+        }
         let authURL = buildAuthURL(scopes: scopes)
-
-        let vc = InstagramLoginViewController(authURL: authURL, success: { accessToken in
+        let loginViewController = InstagramLoginViewController(authURL: authURL, success: nil, failure: nil)
+        loginViewController.progressColor = UIColor.blue
+        loginViewController.success = { accessToken in
             guard self.storeAccessToken(accessToken) else {
                 failure?(InstagramError.keychainError(code: self.keychain.lastResultCode))
                 return
             }
-
-            controller.popViewController(animated: true)
             success?()
-        }, failure: failure)
-
-        controller.show(vc, sender: nil)
+        }
+        loginViewController.failure = { error in
+            failure?(error)
+        }
+        let naigationController = UINavigationController(rootViewController: loginViewController)
+        return naigationController
     }
 
     private func buildAuthURL(scopes: [InstagramScope]) -> URL {
@@ -129,6 +131,10 @@ public class Instagram {
         return keychain.delete(Keychain.accessTokenKey)
     }
 
+    func close(){
+        
+    }
+    
     // MARK: -
 
     func request<T: Decodable>(_ endpoint: String,
